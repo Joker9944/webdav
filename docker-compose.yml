@@ -1,0 +1,31 @@
+version: '3.7'
+
+services:
+  webdav:
+    image: bytemark/webdav
+    environment:
+      - SERVER_NAMES=$WEBDAV_SUB_DOMAIN.$DOMAIN
+      - REALM=webdav
+    volumes:
+      - ./secrets/htpasswd:/user.passwd
+      - ./etc/dav:/var/lib/dav
+    labels:
+      - traefik.enable=true
+      - traefik.http.services.webdav.loadbalancer.server.port=80
+      - traefik.http.routers.webdav.rule=Host(`$WEBDAV_SUB_DOMAIN.$DOMAIN`)
+      - traefik.http.routers.webdav.entrypoints=websecure
+      - traefik.http.routers.webdav.tls.certresolver=tls-resolver
+      - traefik.http.routers.webdav.middlewares=webdav-auth
+      - traefik.http.middlewares.webdav-auth.basicauth.usersfile=/etc/traefik/htpasswd
+      - traefik.http.middlewares.webdav-auth.basicauth.realm=webdav
+  traefik:
+    image: traefik
+    ports:
+      - "443:443"
+    environment:
+      - TRAEFIK_CERTIFICATESRESOLVERS_tls-resolver_ACME_EMAIL=$ACME_EMAIL
+    volumes:
+      - ./secrets/acme.json:/etc/traefik/acme.json
+      - ./secrets/htpasswd:/etc/traefik/htpasswd:ro
+      - ./conf/traefik.yml:/traefik.yml:ro
+      - /var/run/docker.sock:/var/run/docker.sock
